@@ -14,11 +14,11 @@ composer install
 cp .env.example .env
 
 
-bash```
+
 
 Edit .env with your local MySQL and Mail configuration:
 
-```bash
+
 php artisan key:generate
 
 php artisan migrate --seed
