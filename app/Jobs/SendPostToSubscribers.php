@@ -26,25 +26,25 @@ class SendPostToSubscribers implements ShouldQueue
     public function handle(): void
     {
         try {
-            $subscribers = Subscriber::all();
-            // echo "here";
-            foreach ($subscribers as $subscriber) {
-                $alreadySent = DB::table('post_subscribers')
-                    ->where('post_id', $this->post->id)
-                    ->where('subscriber_id', $subscriber->id)
-                    ->exists();
-                // print_r($alreadySent); exit("die here");
-                if (!$alreadySent) {
-                    Mail::to($subscriber->email)->send(new NewPostMail($this->post));
-                    DB::table('post_subscribers')->insert([
-                        'post_id' => $this->post->id,
-                        'subscriber_id' => $subscriber->id
-                    ]);
+            //handle 1000 subscribers at a time
+            Subscriber::select('id', 'email')->orderBy('id')->chunkById(1000, function ($subscribers) {
+                foreach ($subscribers as $subscriber) {
+                    $alreadySent = DB::table('post_subscribers')
+                        ->where('post_id', $this->post->id)
+                        ->where('subscriber_id', $subscriber->id)
+                        ->exists();
+                    // print_r($alreadySent); exit("die here");
+                    if (!$alreadySent) {
+                        Mail::to($subscriber->email)->queue(new NewPostMail($this->post)); // ✅ Queued mail
+                        DB::table('post_subscribers')->insert([
+                            'post_id' => $this->post->id,
+                            'subscriber_id' => $subscriber->id
+                        ]);
+                    }
                 }
-            }
+            });
         } catch (\Throwable $th) {
-            echo "error";
-            echo $th->getMessage();
+            \Log::error('Error sending post to subscribers: ' . $th->getMessage());
         }
     }
 }
